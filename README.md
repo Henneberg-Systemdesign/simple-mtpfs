@@ -76,12 +76,14 @@ To unmount MTP device, execute following command:
 
     $ fusermount -u <mountpoint>
 
-META DATA
-=========
+METADATA
+========
 
 To get file metadata without downloading the file you can read from
-<filename-and-path>.meta which will request the metadata from the file using
+virtual .meta file which will request the metadata from the file using
 libmtp.
+
+    $ cat <path-to-file>.meta
 
 BUG REPORTS
 ===========
