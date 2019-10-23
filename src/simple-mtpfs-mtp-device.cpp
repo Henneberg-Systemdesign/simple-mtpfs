@@ -476,7 +476,7 @@ bool MTPDevice::writeMetaInfo(int fd, const char *key, const char *value)
     free(info);
     if (rval < 0)
         return false;
-    return ((size_t) rval == info_len);
+    return (rval == (ssize_t) info_len);
 }
 
 int MTPDevice::metaPull(const std::string &src, const std::string &dst)
@@ -484,12 +484,12 @@ int MTPDevice::metaPull(const std::string &src, const std::string &dst)
     const std::string src_basename(smtpfs_basename(src));
     const std::string src_dirname(smtpfs_dirname(src));
     const TypeDir *dir_parent = dirFetchContent(src_dirname);
-    const TypeFile *file_to_fetch = dir_parent ? dir_parent->file(src_basename) : nullptr;
+    const TypeFile *file_to_inspect = dir_parent ? dir_parent->metaFile(src_basename) : nullptr;
     if (!dir_parent) {
-        logerr("Can not fetch '", src, "'.\n");
+        logerr("Can not inspect '", src, "'.\n");
         return -EINVAL;
     }
-    if (!file_to_fetch) {
+    if (!file_to_inspect) {
         logerr("No such file '", src, "'.\n");
         return -ENOENT;
     }
@@ -497,7 +497,7 @@ int MTPDevice::metaPull(const std::string &src, const std::string &dst)
     logmsg("Started fetching meta for '", src, "'.\n");
     criticalEnter();
     LIBMTP_file_t *meta =
-        LIBMTP_Get_Filemetadata(m_device, file_to_fetch->id());
+        LIBMTP_Get_Filemetadata(m_device, file_to_inspect->id());
     criticalLeave();
     if (!meta) {
         logerr("Could not fetch meta for file '", src, "'.\n");
@@ -507,20 +507,22 @@ int MTPDevice::metaPull(const std::string &src, const std::string &dst)
         return -ENOENT;
     }
 
-    int fd = ::open(dst.c_str(), O_CREAT | O_TRUNC, O_WRONLY);
-    if (fd  < 0)
+    int fd = ::open(dst.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+    if (fd < 0)
         return -ENOENT;
 
     // write MIME type
     char const *mime = LIBMTP_Get_Filetype_Description(meta->filetype);
-    writeMetaInfo(fd, "mime", mime);
+    writeMetaInfo(fd, "MIME", mime);
 
-    ::close(fd);
+    // reset read/write pointer for reading
+    lseek(fd, 0, SEEK_SET);
 
+    // cleanup metadata structure
     LIBMTP_destroy_file_t(meta);
 
     logmsg("Meta fetched for '", src, "'.\n");
-    return 0;
+    return fd;
 }
 
 int MTPDevice::filePull(const std::string &src, const std::string &dst)

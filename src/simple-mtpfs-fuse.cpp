@@ -438,6 +438,16 @@ int SMTPFileSystem::getattr(const char *path, struct stat *buf)
             buf->st_mtime = file->modificationDate();
             buf->st_ctime = buf->st_mtime;
             buf->st_atime = buf->st_mtime;
+        } else if (content->metaFile(tmp_file)) {
+            const TypeFile *file = content->metaFile(tmp_file);
+            buf->st_ino = file->id();
+            buf->st_size = file->size();
+            buf->st_blocks = (file->size() / 512) + (file->size() % 512 > 0 ? 1 : 0);
+            buf->st_nlink = 1;
+            buf->st_mode = S_IFREG | 0644;
+            buf->st_mtime = file->modificationDate();
+            buf->st_ctime = buf->st_mtime;
+            buf->st_atime = buf->st_mtime;
         } else {
             return -ENOENT;
         }
@@ -591,6 +601,7 @@ int SMTPFileSystem::open(const char *path, struct fuse_file_info *file_info)
         m_tmp_files_pool.getFile(std_path));
 
     std::string tmp_path;
+    int meta_fd = -1;
     if (tmp_file) {
         tmp_path = tmp_file->pathTmp();
     } else {
@@ -598,13 +609,15 @@ int SMTPFileSystem::open(const char *path, struct fuse_file_info *file_info)
 
         int rval = m_device.filePull(std_path, tmp_path);
         if (rval != 0) {
-            rval = openMeta(std_path, tmp_path, file_info);
-            if (rval != 0)
+            meta_fd = m_device.metaPull(std_path, tmp_path);
+            if (meta_fd < 0)
                 return -rval;
         }
     }
 
-    int fd = ::open(tmp_path.c_str(), file_info->flags);
+    int fd = meta_fd;
+    if (fd < 0)
+        fd = ::open(tmp_path.c_str(), file_info->flags);
     if (fd < 0) {
         ::unlink(tmp_path.c_str());
         return -errno;
