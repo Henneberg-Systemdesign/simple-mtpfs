@@ -50,6 +50,7 @@ public:
     std::set<TypeFile>::size_type fileCount() const { return m_files.size(); }
     const TypeDir  *dir(const std::string &name) const;
     const TypeFile *file(const std::string &name) const;
+    const TypeFile *metaFile(const std::string &name) const;
     std::set<TypeDir> dirs() const { return m_dirs; }
     std::set<TypeFile> files() const { return m_files; }
     bool isEmpty() const { return m_dirs.empty() && m_files.empty(); }
@@ -65,6 +66,8 @@ public:
     bool operator <(const TypeDir &rhs) const { return TypeBasic::operator <(rhs); }
 
 private:
+    static const std::string s_meta;
+
     std::set<TypeDir> m_dirs;
     std::set<TypeFile> m_files;
     mutable std::mutex m_access_mutex;

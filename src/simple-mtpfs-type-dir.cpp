@@ -154,6 +154,28 @@ const TypeDir *TypeDir::dir(const std::string &name) const
     return &*it;
 }
 
+const std::string TypeDir::s_meta = ".meta";
+
+const TypeFile *TypeDir::metaFile(const std::string &name) const
+{
+    if (name.length() < s_meta.length())
+        return nullptr;
+    if (!!name.compare(name.length() - s_meta.length(),
+            s_meta.length(), s_meta))
+        return nullptr;
+    const std::string real_name =
+        name.substr(0, name.length() - s_meta.length());
+
+    enterCritical();
+    auto it = std::find(m_files.begin(), m_files.end(), real_name);
+    leaveCritical();
+
+    if (it == m_files.end())
+        return nullptr;
+
+    return &*it;
+}
+
 const TypeFile *TypeDir::file(const std::string &name) const
 {
     enterCritical();
