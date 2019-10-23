@@ -467,7 +467,7 @@ int MTPDevice::rename(const std::string &oldpath, const std::string &newpath)
 #endif
 }
 
-bool MTPDevice::writeMetaInfo(int fd, const char *key, const char *value)
+bool MTPDevice::writeMetaInfo(int fd, const char *key, const char *value) const
 {
     char *info = (char *) malloc(strlen(key) + 1 + strlen(value) + 1 + 1);
     sprintf(info, "%s:%s\n", key, value);
@@ -477,6 +477,103 @@ bool MTPDevice::writeMetaInfo(int fd, const char *key, const char *value)
     if (rval < 0)
         return false;
     return (rval == (ssize_t) info_len);
+}
+
+const char *MTPDevice::mimeFromFiletype(LIBMTP_filetype_t type) const {
+    switch (type) {
+    case LIBMTP_FILETYPE_FOLDER:
+        return "";
+    case LIBMTP_FILETYPE_WAV:
+        return "audio/x-wav";
+    case LIBMTP_FILETYPE_MP3:
+        return "audio/mp3";
+    case LIBMTP_FILETYPE_WMA:
+        return "audio/x-ms-wma";
+    case LIBMTP_FILETYPE_OGG:
+        return "application/ogg";
+    case LIBMTP_FILETYPE_AUDIBLE:
+        return "audio";
+    case LIBMTP_FILETYPE_MP4:
+        return "video/mp4";
+    case LIBMTP_FILETYPE_UNDEF_AUDIO:
+        return "audio";
+    case LIBMTP_FILETYPE_WMV:
+        return "video/x-ms-asf";
+    case LIBMTP_FILETYPE_AVI:
+        return "video/avi";
+    case LIBMTP_FILETYPE_MPEG:
+        return "video/mpeg";
+    case LIBMTP_FILETYPE_ASF:
+        return "video/x-ms-asf";
+    case LIBMTP_FILETYPE_QT:
+        return "video/quicktime";
+    case LIBMTP_FILETYPE_UNDEF_VIDEO:
+        return "video";
+    case LIBMTP_FILETYPE_JPEG:
+        return "image/jpeg";
+    case LIBMTP_FILETYPE_JFIF:
+        return "image/jpeg";
+    case LIBMTP_FILETYPE_TIFF:
+        return "image/tiff";
+    case LIBMTP_FILETYPE_BMP:
+        return "image/bmp";
+    case LIBMTP_FILETYPE_GIF:
+        return "image/gif";
+    case LIBMTP_FILETYPE_PICT:
+        return "image/pict";
+    case LIBMTP_FILETYPE_PNG:
+        return "image/png";
+    case LIBMTP_FILETYPE_VCALENDAR1:
+        return "text/calendar";
+    case LIBMTP_FILETYPE_VCALENDAR2:
+        return "text/calendar";
+    case LIBMTP_FILETYPE_VCARD2:
+        return "text/vcard";
+    case LIBMTP_FILETYPE_VCARD3:
+        return "text/vcard";
+    case LIBMTP_FILETYPE_WINDOWSIMAGEFORMAT:
+        return "image/x-ms-wim";
+    case LIBMTP_FILETYPE_WINEXEC:
+        return "application/octet-stream";
+    case LIBMTP_FILETYPE_TEXT:
+        return "text/plain";
+    case LIBMTP_FILETYPE_HTML:
+        return "text/html";
+    case LIBMTP_FILETYPE_FIRMWARE:
+        return "application/octet-stream";
+    case LIBMTP_FILETYPE_AAC:
+        return "audio/aac";
+    case LIBMTP_FILETYPE_MEDIACARD:
+        return "application/octet-stream";
+    case LIBMTP_FILETYPE_FLAC:
+        return "audio/flac";
+    case LIBMTP_FILETYPE_MP2:
+        return "audio/mpeg";
+    case LIBMTP_FILETYPE_M4A:
+        return "audio/m4a";
+    case LIBMTP_FILETYPE_DOC:
+        return "application/msword";
+    case LIBMTP_FILETYPE_XML:
+        return "text/xml";
+    case LIBMTP_FILETYPE_XLS:
+        return "application/vnd.ms-excel";
+    case LIBMTP_FILETYPE_PPT:
+        return "application/vnd.ms-powerpoint";
+    case LIBMTP_FILETYPE_MHT:
+        return "application/x-mimearchive";
+    case LIBMTP_FILETYPE_JP2:
+        return "image/jp2";
+    case LIBMTP_FILETYPE_JPX:
+        return "image/jpx";
+    case LIBMTP_FILETYPE_ALBUM:
+        return "";
+    case LIBMTP_FILETYPE_PLAYLIST:
+        return "";
+    case LIBMTP_FILETYPE_UNKNOWN:
+        return "application/octet-stream";
+    }
+
+    return "";
 }
 
 int MTPDevice::metaPull(const std::string &src, const std::string &dst)
@@ -512,7 +609,7 @@ int MTPDevice::metaPull(const std::string &src, const std::string &dst)
         return -ENOENT;
 
     // write MIME type
-    char const *mime = LIBMTP_Get_Filetype_Description(meta->filetype);
+    const char *mime = mimeFromFiletype(meta->filetype);
     writeMetaInfo(fd, "MIME", mime);
 
     // reset read/write pointer for reading

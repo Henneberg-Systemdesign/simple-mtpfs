@@ -97,7 +97,8 @@ private:
     static Capabilities getCapabilities(const MTPDevice &device);
     bool connect_priv(int dev_no, const std::string &dev_file);
 
-    bool writeMetaInfo(int fd, const char *key, const char *value);
+    bool writeMetaInfo(int fd, const char *key, const char *value) const;
+    const char *mimeFromFiletype(LIBMTP_filetype_t type) const;
 
 private:
     LIBMTP_mtpdevice_t *m_device;
