@@ -78,6 +78,7 @@ public:
 
     int rename(const std::string &oldpath, const std::string &newpath);
 
+    int metaPull(const std::string &src, const std::string &dst);
     int filePull(const std::string &src, const std::string &dst);
     int filePush(const std::string &src, const std::string &dst);
     int fileRemove(const std::string &path);
@@ -95,6 +96,8 @@ private:
 
     static Capabilities getCapabilities(const MTPDevice &device);
     bool connect_priv(int dev_no, const std::string &dev_file);
+
+    bool writeMetaInfo(int fd, const char *key, const char *value);
 
 private:
     LIBMTP_mtpdevice_t *m_device;

@@ -467,6 +467,62 @@ int MTPDevice::rename(const std::string &oldpath, const std::string &newpath)
 #endif
 }
 
+bool MTPDevice::writeMetaInfo(int fd, const char *key, const char *value)
+{
+    char *info = (char *) malloc(strlen(key) + 1 + strlen(value) + 1 + 1);
+    sprintf(info, "%s:%s\n", key, value);
+    size_t info_len = strlen(info);
+    ssize_t rval = write(fd, info, info_len);
+    free(info);
+    if (rval < 0)
+        return false;
+    return ((size_t) rval == info_len);
+}
+
+int MTPDevice::metaPull(const std::string &src, const std::string &dst)
+{
+    const std::string src_basename(smtpfs_basename(src));
+    const std::string src_dirname(smtpfs_dirname(src));
+    const TypeDir *dir_parent = dirFetchContent(src_dirname);
+    const TypeFile *file_to_fetch = dir_parent ? dir_parent->file(src_basename) : nullptr;
+    if (!dir_parent) {
+        logerr("Can not fetch '", src, "'.\n");
+        return -EINVAL;
+    }
+    if (!file_to_fetch) {
+        logerr("No such file '", src, "'.\n");
+        return -ENOENT;
+    }
+
+    logmsg("Started fetching meta for '", src, "'.\n");
+    criticalEnter();
+    LIBMTP_file_t *meta =
+        LIBMTP_Get_Filemetadata(m_device, file_to_fetch->id());
+    criticalLeave();
+    if (!meta) {
+        logerr("Could not fetch meta for file '", src, "'.\n");
+        LIBMTP_Dump_Errorstack(m_device);
+        LIBMTP_Clear_Errorstack(m_device);
+        LIBMTP_destroy_file_t(meta);
+        return -ENOENT;
+    }
+
+    int fd = ::open(dst.c_str(), O_CREAT | O_TRUNC, O_WRONLY);
+    if (fd  < 0)
+        return -ENOENT;
+
+    // write MIME type
+    char const *mime = LIBMTP_Get_Filetype_Description(meta->filetype);
+    writeMetaInfo(fd, "mime", mime);
+
+    ::close(fd);
+
+    LIBMTP_destroy_file_t(meta);
+
+    logmsg("Meta fetched for '", src, "'.\n");
+    return 0;
+}
+
 int MTPDevice::filePull(const std::string &src, const std::string &dst)
 {
     const std::string src_basename(smtpfs_basename(src));

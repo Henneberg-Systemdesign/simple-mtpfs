@@ -104,10 +104,7 @@ public:
     int create(const char *path, mode_t mode, fuse_file_info *file_info);
 
 private:
-    static bool removeDir(const std::string &dirname);
-
-    bool createTmpDir();
-    bool removeTmpDir();
+    int openMeta(const std::string &path, const std::string &tmp_path, struct fuse_file_info *file_info);
 
     static std::unique_ptr<SMTPFileSystem> s_instance;
     struct fuse_args m_args;

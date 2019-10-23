@@ -195,6 +195,31 @@ int SMTPFileSystem::SMTPFileSystemOptions::opt_proc(void *data, const char *arg,
     return 1;
 }
 
+int SMTPFileSystem::openMeta(const std::string &path, const std::string &tmp_path,
+    struct fuse_file_info *file_info)
+{
+    // let's see if the file is called .meta
+    const std::string src_basename(smtpfs_basename(path));
+    const std::string src_dirname(smtpfs_dirname(path));
+    const std::string meta = ".meta";
+
+    // FIXME: use std::string::ends_with() if C++20
+    if (src_basename.length() < meta.length())
+        return -ENOENT;
+    if (!!src_basename.compare(src_basename.length() - meta.length(),
+            meta.length(), meta))
+        return -ENOENT;
+
+    // FIXME: check if the file shall be accessed read-only
+
+    const std::string src_file =
+        src_basename.substr(0, src_basename.length() - meta.length());
+
+    int rval = m_device.metaPull(src_file, tmp_path);
+
+    return rval;
+}
+
 std::unique_ptr<SMTPFileSystem> SMTPFileSystem::s_instance;
 
 SMTPFileSystem *SMTPFileSystem::instance()
@@ -597,8 +622,11 @@ int SMTPFileSystem::open(const char *path, struct fuse_file_info *file_info)
         tmp_path = m_tmp_files_pool.makeTmpPath(std_path);
 
         int rval = m_device.filePull(std_path, tmp_path);
-        if (rval != 0)
-            return -rval;
+        if (rval != 0) {
+            rval = openMeta(std_path, tmp_path, file_info);
+            if (rval != 0)
+                return -rval;
+        }
     }
 
     int fd = ::open(tmp_path.c_str(), file_info->flags);
