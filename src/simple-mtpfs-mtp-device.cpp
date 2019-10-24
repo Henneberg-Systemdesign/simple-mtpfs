@@ -469,6 +469,8 @@ int MTPDevice::rename(const std::string &oldpath, const std::string &newpath)
 
 bool MTPDevice::writeMetaInfo(int fd, const char *key, const char *value) const
 {
+    if (!value)
+        return false;
     char *info = (char *) malloc(strlen(key) + 1 + strlen(value) + 1 + 1);
     sprintf(info, "%s:%s\n", key, value);
     size_t info_len = strlen(info);
@@ -477,6 +479,20 @@ bool MTPDevice::writeMetaInfo(int fd, const char *key, const char *value) const
     if (rval < 0)
         return false;
     return (rval == (ssize_t) info_len);
+}
+
+bool MTPDevice::writeMetaInfo(int fd, const char *key, uint16_t value) const
+{
+    char valueStr[100];
+    sprintf(valueStr, "%d", value);
+    return writeMetaInfo(fd, key, valueStr);
+}
+
+bool MTPDevice::writeMetaInfo(int fd, const char *key, uint32_t value) const
+{
+    char valueStr[100];
+    sprintf(valueStr, "%d", value);
+    return writeMetaInfo(fd, key, valueStr);
 }
 
 const char *MTPDevice::mimeFromFiletype(LIBMTP_filetype_t type) const {
@@ -600,7 +616,6 @@ int MTPDevice::metaPull(const std::string &src, const std::string &dst)
         logerr("Could not fetch meta for file '", src, "'.\n");
         LIBMTP_Dump_Errorstack(m_device);
         LIBMTP_Clear_Errorstack(m_device);
-        LIBMTP_destroy_file_t(meta);
         return -ENOENT;
     }
 
@@ -611,6 +626,54 @@ int MTPDevice::metaPull(const std::string &src, const std::string &dst)
     // write MIME type
     const char *mime = mimeFromFiletype(meta->filetype);
     writeMetaInfo(fd, "MIME", mime);
+
+    // get track info for tracks
+    if (LIBMTP_FILETYPE_IS_TRACK(meta->filetype)) {
+        LIBMTP_track_t *track_meta = LIBMTP_Get_Trackmetadata(m_device,
+            file_to_inspect->id());
+        if (!!track_meta) {
+            writeMetaInfo(fd, "TITLE", track_meta->title);
+            writeMetaInfo(fd, "ARTIST", track_meta->artist);
+            writeMetaInfo(fd, "COMPOSER", track_meta->composer);
+            writeMetaInfo(fd, "GENRE", track_meta->genre);
+            writeMetaInfo(fd, "ALBUM", track_meta->album);
+            writeMetaInfo(fd, "DATE", track_meta->date);
+            writeMetaInfo(fd, "TRACK", track_meta->tracknumber);
+            writeMetaInfo(fd, "DURATION", track_meta->duration);
+            LIBMTP_destroy_track_t(track_meta);
+        } else {
+            LIBMTP_Dump_Errorstack(m_device);
+            LIBMTP_Clear_Errorstack(m_device);
+        }
+    }
+
+    // gather image meta data
+    if (LIBMTP_FILETYPE_IS_IMAGE(meta->filetype)) {
+        if (LIBMTP_Is_Property_Supported(m_device, LIBMTP_PROPERTY_Width,
+                meta->filetype) > 0) {
+            logmsg("Width property supported for images.\n");
+            uint32_t rval = LIBMTP_Get_u32_From_Object(m_device,
+                file_to_inspect->id(), LIBMTP_PROPERTY_Width, 0);
+            writeMetaInfo(fd, "WIDTH", rval);
+            rval = LIBMTP_Get_u32_From_Object(m_device,
+                file_to_inspect->id(), LIBMTP_PROPERTY_Height, 0);
+            writeMetaInfo(fd, "HEIGHT", rval);
+        }
+        if (LIBMTP_Is_Property_Supported(m_device, LIBMTP_PROPERTY_OriginLocation,
+                meta->filetype) > 0) {
+            logmsg("OriginLocation property supported for images.\n");
+            uint32_t rval = LIBMTP_Get_u32_From_Object(m_device,
+                file_to_inspect->id(), LIBMTP_PROPERTY_OriginLocation, 0);
+            writeMetaInfo(fd, "LOCATION", rval);
+        }
+        if (LIBMTP_Is_Property_Supported(m_device, LIBMTP_PROPERTY_DateCreated,
+                meta->filetype) > 0) {
+            logmsg("DateCreated property supported for images.\n");
+            uint32_t rval = LIBMTP_Get_u32_From_Object(m_device,
+                file_to_inspect->id(), LIBMTP_PROPERTY_DateCreated, 0);
+            writeMetaInfo(fd, "DATE", rval);
+        }
+    }
 
     // reset read/write pointer for reading
     lseek(fd, 0, SEEK_SET);

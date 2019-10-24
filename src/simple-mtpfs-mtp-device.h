@@ -98,6 +98,8 @@ private:
     bool connect_priv(int dev_no, const std::string &dev_file);
 
     bool writeMetaInfo(int fd, const char *key, const char *value) const;
+    bool writeMetaInfo(int fd, const char *key, uint16_t value) const;
+    bool writeMetaInfo(int fd, const char *key, uint32_t value) const;
     const char *mimeFromFiletype(LIBMTP_filetype_t type) const;
 
 private:
